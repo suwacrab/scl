@@ -5,10 +5,6 @@
 namespace stdfs = std::filesystem;
 
 namespace sample_sdzarc {
-	typedef struct CFileEntry {
-
-	};
-
 	static void fn_pack() {
 		const std::string entry_names[] = {
 			"entry A.",
@@ -29,7 +25,7 @@ namespace sample_sdzarc {
 				auto path = entry.path().string();
 				auto proxim = stdfs::proximate(entry.path(),basepath);
 				scl::blob filedata;
-				std::printf("loading file arc::%s\n",proxim.c_str());
+				std::printf("loading file arc::%s\n",proxim.string().c_str());
 				filedata.file_load(path);
 				filedata_table.push_back(filedata);
 				filename_table.push_back(proxim.string());
@@ -72,13 +68,13 @@ namespace sample_sdzarc {
 			.write_blob(blob_segData)
 			.file_send("out.bin",false);
 	}
-	static void unpack() {
+	static void fn_unpack() {
 		
 	}
 };
 
 int main(int argc, const char* argv[]) {
-	sample_sdzarc::pack()
-	sample_sdzarc::unpack()
+	sample_sdzarc::fn_pack();
+	sample_sdzarc::fn_unpack();
 }
 
