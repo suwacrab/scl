@@ -76,7 +76,7 @@ class blob {
 			m_data.insert(m_data.end(),buffer.begin(),buffer.end());
 			return true;
 		}
-		auto file_send(const std::string& filename, bool strict=true) -> bool {
+		auto file_send(const std::string& filename, bool strict=true) const -> bool {
 			auto file = std::fopen(filename.c_str(),"wb");
 			if(!file) {
 				if(strict) {
@@ -87,7 +87,7 @@ class blob {
 				}
 				return false;
 			}
-			std::fwrite(data(),sizeof(char),size(),file);
+			std::fwrite(m_data.data(),sizeof(char),size(),file);
 			std::fclose(file);
 			return true;
 		}
