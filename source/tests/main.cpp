@@ -66,7 +66,7 @@ namespace sample_sdzarc {
 			.write_blob(blob_segEntry)
 			.write_blob(blob_segName)
 			.write_blob(blob_segData)
-			.file_send("out.bin",false);
+			.file_send("workdata/out.bin",false);
 	}
 	static void fn_unpack() {
 		
