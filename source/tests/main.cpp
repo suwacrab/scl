@@ -1,3 +1,4 @@
+#define SCL_USE_ZLIB
 #include <scl/container/blob.hpp>
 #include <ranges>
 #include <filesystem>
@@ -18,7 +19,7 @@ namespace sample_sdzarc {
 
 		std::vector<scl::blob> filedata_table;
 		std::vector<std::string> filename_table;
-		auto basepath = stdfs::path("../../cmdutil/miniarc");
+		auto basepath = stdfs::path("../../guiutil/kappamap/kmap/workdata/sprite/editor/chip");
 		std::printf("foldername: %s\n",basepath.string().c_str());
 		for (const auto & entry : stdfs::recursive_directory_iterator(basepath)) {
 			if(entry.is_regular_file()) {
@@ -41,7 +42,6 @@ namespace sample_sdzarc {
 
 		std::puts("writing blobs");
 		for(auto const [index,data] : std::views::enumerate(filedata_table)) {
-			blob_segEntry.write_u32(0xE000);
 			blob_segEntry.write_u32(index);
 			blob_segEntry.write_u32(data.size());
 			blob_segEntry.write_u32(blob_segName.size());
@@ -62,14 +62,20 @@ namespace sample_sdzarc {
 		blob_segHeader.write_u32(offset_segData);
 		blob_segHeader.pad(pad_size);
 
+
 		blob_all.write_blob(blob_segHeader)
 			.write_blob(blob_segEntry)
 			.write_blob(blob_segName)
-			.write_blob(blob_segData)
-			.file_send("workdata/out.bin",false);
+			.write_blob(blob_segData);
+
+		blob_all.file_send("workdata/out.bin");
+		blob_all.compress_full().file_send("workdata/outPacked.bin");
 	}
 	static void fn_unpack() {
-		
+		scl::blob filedata;
+		filedata.file_load("workdata/outPacked.bin");
+		auto unpacked = filedata.decompress_full();
+		unpacked.file_send("workdata/outUnpacked.bin");
 	}
 };
 
