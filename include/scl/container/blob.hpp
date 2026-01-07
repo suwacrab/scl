@@ -15,10 +15,10 @@ namespace scl {
 
 class blob {
 	public:
-		std::vector<uint8_t> m_data;
+		std::vector<uint8_t> mData;
 
 		auto write_blob(const blob& source) -> blob& {
-			m_data.insert(m_data.end(),source.m_data.begin(),source.m_data.end());
+			mData.insert(mData.end(),source.mData.begin(),source.mData.end());
 			return *this;
 		}
 		auto write_raw(const void* source, size_t len) -> void {
@@ -29,9 +29,9 @@ class blob {
 			}
 
 			auto src_bytes = static_cast<const uint8_t*>(source);
-			m_data.insert(m_data.end(),src_bytes,src_bytes + len);
+			mData.insert(mData.end(),src_bytes,src_bytes + len);
 		}
-		constexpr auto write_u8(uint32_t n) -> void { m_data.push_back(n); }
+		constexpr auto write_u8(uint32_t n) -> void { mData.push_back(n); }
 		constexpr auto write_u16(uint32_t n) -> void { write_u8(n); write_u8(n>>8); }
 		constexpr auto write_u32(uint32_t n) -> void { write_u16(n); write_u16(n>>16); }
 		constexpr auto write_u64(uint64_t n) -> void { write_u32(n); write_u32(n>>32); }
@@ -54,10 +54,10 @@ class blob {
 			}
 		}
 		auto clear() -> void {
-			m_data.clear();
+			mData.clear();
 		}
 		auto resize(size_t amt) -> void {
-			m_data.resize(amt);
+			mData.resize(amt);
 		}
 
 		auto file_load(const std::string& filename, bool strict=true) -> bool {
@@ -80,7 +80,7 @@ class blob {
 			std::vector<uint8_t> buffer(fsize);
 			std::fread(buffer.data(),1,buffer.size(),file);
 			std::fclose(file);
-			m_data.insert(m_data.end(),buffer.begin(),buffer.end());
+			mData.insert(mData.end(),buffer.begin(),buffer.end());
 			return true;
 		}
 		auto file_send(const std::string& filename, bool strict=true) const -> bool {
@@ -95,7 +95,7 @@ class blob {
 				}
 				return false;
 			}
-			std::fwrite(m_data.data(),sizeof(char),size(),file);
+			std::fwrite(mData.data(),sizeof(char),size(),file);
 			std::fclose(file);
 			return true;
 		}
@@ -209,19 +209,19 @@ class blob {
 #endif
 
 		template<typename T=void*> auto data() -> T {
-			return reinterpret_cast<T>(m_data.data());
+			return reinterpret_cast<T>(mData.data());
 		}
-		constexpr auto size() const -> size_t { return m_data.size(); }
-		constexpr auto at(const size_t idx) -> uint8_t& { return m_data.at(idx); }
+		constexpr auto size() const -> size_t { return mData.size(); }
+		constexpr auto at(const size_t idx) -> uint8_t& { return mData.at(idx); }
 
 		blob() {
 			clear();
 		}
 		blob(const blob& orig) {
-			m_data = orig.m_data;
+			mData = orig.mData;
 		}
 		blob(const std::vector<uint8_t>& data) {
-			m_data = data;
+			mData = data;
 		}
 };
 
