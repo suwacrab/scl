@@ -223,6 +223,11 @@ class blob {
 		blob(const std::vector<uint8_t>& data) {
 			mData = data;
 		}
+
+		constexpr auto operator=(const blob& other) -> blob& {
+			mData = other.mData;
+			return *this;
+		}
 };
 
 } // namespace scl
