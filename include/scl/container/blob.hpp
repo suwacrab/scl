@@ -7,6 +7,8 @@
 #include <bit>
 #include <exception>
 
+#include <scl/basis/errhandle.hpp>
+
 #ifdef SCL_USE_ZLIB
 #include <zlib.h>
 #endif
@@ -21,15 +23,13 @@ class blob {
 			mData.insert(mData.end(),source.mData.begin(),source.mData.end());
 			return *this;
 		}
-		auto write_raw(const void* source, size_t len) -> void {
-			if(len == 0) return;
-			if(source == nullptr) {
-				std::puts("Blob::write_raw(): error: attempt to write from null source");
-				std::terminate();
-			}
+		auto write_raw(const void* source, size_t len) -> blob& {
+			SCL_ASSERT_MSG(source,"blob %p: attempt to write from null source",this);
+			if(len == 0) return *this;
 
 			auto src_bytes = static_cast<const uint8_t*>(source);
 			mData.insert(mData.end(),src_bytes,src_bytes + len);
+			return *this;
 		}
 		constexpr auto write_u8(uint32_t n) -> void { mData.push_back(n); }
 		constexpr auto write_u16(uint32_t n) -> void { write_u8(n); write_u8(n>>8); }

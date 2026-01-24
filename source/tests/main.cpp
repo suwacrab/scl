@@ -1,5 +1,7 @@
 #define SCL_USE_ZLIB
+#define SCL_DEBUG
 #include <scl/container/blob.hpp>
+#include <scl/container/pool.hpp>
 #include <ranges>
 #include <filesystem>
 
@@ -78,9 +80,23 @@ namespace sample_sdzarc {
 		unpacked.file_send("workdata/outUnpacked.bin");
 	}
 };
+namespace sample_objlist {
+	class CUnit {
+		public:
+			int mX,mY;
+			int hp;
+			bool alive;
+	};
+
+	auto start() -> void {
+		scl::pool<CUnit> objpool(200);
+	}
+};
 
 int main(int argc, const char* argv[]) {
 	sample_sdzarc::fn_pack();
 	sample_sdzarc::fn_unpack();
+
+	sample_objlist::start();
 }
 
