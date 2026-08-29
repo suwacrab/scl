@@ -2,10 +2,16 @@
 #define SCL_DEBUG
 #include <scl/container/blob.hpp>
 #include <scl/container/pool.hpp>
+#include <scl/math/fixed.hpp>
+#include <scl/math/vector.hpp>
+
 #include <ranges>
 #include <filesystem>
+#include <format>
+#include <iostream>
 
 namespace stdfs = std::filesystem;
+using Fxi = scl::math::Fxi;
 
 namespace sample_sdzarc {
 	static void fn_pack() {
@@ -92,11 +98,79 @@ namespace sample_objlist {
 		scl::pool<CUnit> objpool(200);
 	}
 };
+namespace sample_fxi {
+	auto start() -> void {
+		std::printf("fxi size: S.%zu.%zu\n",Fxi::NumBits-1-Fxi::Shift,Fxi::Shift);
+		std::printf("fxi max:  %lld\n",Fxi::Max);
+		std::printf("fxi sqrt (2)/2: %f (expected: %f)\n",
+			(Fxi(2).sqrt() / 2).real(),
+			std::sqrtf(2.0)/2
+		);
+
+		// check square roots ---------------------------@/
+		const std::vector<double> tbl_sqrttest = {
+			2,4,3,
+			404'003.3290,
+			42'023.31997 * 1,
+			42'023.31997 * 5,
+		};
+		auto fxi_testSqrt_old = [](const double input) {
+			auto res = Fxi(input).sqrt_old();
+			auto res_f = res.real();
+			auto res_expected = std::sqrt(input);
+			auto error_amt = res_f - res_expected;
+			
+			std::cout << std::format("fxi sqrt.old ({0:f}): {2:08X}h,{1:f} (expected: {3:f}, error: {4:+.6f})\n",
+				input,
+				res_f,res.raw(),
+				res_expected,error_amt
+			);
+		};
+		auto fxi_testSqrt_new = [](const double input) {
+			auto res = Fxi(input).sqrt();
+			auto res_f = res.real();
+			auto res_expected = std::sqrt(input);
+			auto error_amt = res_f - res_expected;
+			
+			std::cout << std::format("fxi sqrt.new ({0:f}): {2:08X}h,{1:f} (expected: {3:f}, error: {4:+.6f})\n",
+				input,
+				res_f,res.raw(),
+				res_expected,error_amt
+			);
+		};
+		auto fxi_testSqrt = [&](const double input) {
+			fxi_testSqrt_old(input);
+			fxi_testSqrt_new(input);
+			std::puts("");
+		};
+		for(const auto& num : tbl_sqrttest) {
+			fxi_testSqrt(num);
+		}
+
+		// check arith ----------------------------------@/
+		Fxi val = 0;
+		val += 4;  // 4
+		val -= 2;  // 2
+		val *= 16; // 32
+		val /= 3;  // 10.666?
+		val = 3 + val;
+
+		Fxi div_x = 5;
+		Fxi div_xRes = 1 / div_x;
+		Fxi div_60 = Fxi(1.0 / 60.0);
+		Fxi printtest = 34290.29138;
+		std::printf("fxi res (arith): %f\n",val.real());
+		std::cout << std::format("1/x: {0} ({1})\n",div_xRes.real(),div_xRes.to_str());
+		std::cout << std::format("num: {0} ({1})\n",printtest.real(),printtest.to_str());
+		std::cout << std::format("num: {0} ({1})\n",div_60.real(),1.0 / 60);
+	}
+};
 
 int main(int argc, const char* argv[]) {
 	sample_sdzarc::fn_pack();
 	sample_sdzarc::fn_unpack();
 
 	sample_objlist::start();
+	sample_fxi::start();
 }
 

@@ -23,7 +23,7 @@ class blob {
 			mData.insert(mData.end(),source.mData.begin(),source.mData.end());
 			return *this;
 		}
-		auto write_raw(const void* source, size_t len) -> blob& {
+		auto write_raw(const void* source, std::size_t len) -> blob& {
 			SCL_ASSERT_MSG(source,"blob %p: attempt to write from null source",this);
 			if(len == 0) return *this;
 
@@ -73,7 +73,7 @@ class blob {
 			}
 			// get file size ----------------------------@/
 			std::fseek(file,0,SEEK_END);
-			const size_t fsize = std::ftell(file);
+			const std::size_t fsize = std::ftell(file);
 			std::rewind(file);
 
 			// write to blob ----------------------------@/
@@ -211,8 +211,13 @@ class blob {
 		template<typename T=void*> auto data() -> T {
 			return reinterpret_cast<T>(mData.data());
 		}
-		constexpr auto size() const -> size_t { return mData.size(); }
-		constexpr auto at(const size_t idx) -> uint8_t& { return mData.at(idx); }
+		constexpr auto size() const -> std::size_t { return mData.size(); }
+		constexpr auto at(const std::size_t idx) -> uint8_t& {
+			return mData.at(idx); 
+		}
+		constexpr auto at(const std::size_t idx) const -> const uint8_t& {
+			return mData.at(idx); 
+		}
 
 		blob() {
 			clear();

@@ -1,10 +1,10 @@
 #pragma once
 
 #include <initializer_list>
-#include <cmath>
-#include <numbers>
-#include <cstdio>
-#include <format>
+#include <numeric>
+#include <string>
+
+#include <scl/math/fixed.hpp>
 
 namespace scl {
 namespace math {
