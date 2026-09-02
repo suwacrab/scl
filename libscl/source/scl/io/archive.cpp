@@ -11,6 +11,7 @@
 #include <filesystem>
 
 #include <clocale>
+#include <cstring>
 
 namespace stdfs = std::filesystem;
 
@@ -33,8 +34,77 @@ auto MetadataFolder::add_folder(MetadataFolder fldr) -> void {
 // ==========================================================================@/
 // record                                                                    @/
 // ==========================================================================@/
-RecordFile::RecordFile(Record* record, const std::string& filename) {
-	mRecordCurrent = record;
+RecordFile::RecordFile(Record& record, const std::string& filename) {
+	open(record,filename);
+}
+RecordFile::~RecordFile() {
+	close();
+}
+auto RecordFile::seek(int offset, int origin) -> void {
+	SCL_ASSERT_MSG(mInfoFile,"RecordFile %p: null file",this);
+
+	switch(origin) {
+		default: {
+			SCL_ASSERT_MSG(false,"RecordFile %p: invalid origin %d",this,origin);
+			break;
+		}
+		case SEEK_SET: {
+			mOffset = offset;
+			break;
+		}
+		case SEEK_CUR: {
+			mOffset += offset;
+			break;
+		}
+		case SEEK_END: {
+			mOffset = mInfoFile->mDataLen + offset;
+			break;
+		}
+	}
+
+	const int offset_begin = mRecordCurrent->mFiledataOffset + mInfoFile->mDataIdx;
+	std::fseek(hFile, offset_begin + mOffset, SEEK_SET);
+}
+auto RecordFile::read(size_t len) -> scl::Blob {
+	SCL_ASSERT_MSG(mInfoFile,"RecordFile %p: null file",this);
+	SCL_ASSERT_MSG(mOffset + len <= mInfoFile->mDataLen,"RecordFile %p: attempt to read past eof",this);
+	
+	// create buffer to read into -----------------------@/
+	scl::blob bl;
+	bl.resize(len);
+
+	// read into blob -----------------------------------@/
+	std::fread(bl.data(),1,len,hFile);
+	mOffset += len;
+
+	return bl;
+}
+auto RecordFile::read(void* output, size_t len) -> void {
+	SCL_ASSERT_MSG(output,"RecordFile %p: null output ptr",this);
+	auto bl = read(len);
+	std::memcpy(output,bl.data(),len);
+}
+auto RecordFile::open(Record& record, const std::string& filename) -> void {
+	mRecordCurrent = &record;
+	mRecordCurrent->filehandle_add();
+	mInfoFile = record.file_find(filename);
+	SCL_ASSERT_MSG(mInfoFile,"RecordFile %p: unable to find file %s",this,filename.c_str());
+	hFile = std::fopen(record.mRecordFilename.c_str(),"rb");
+	SCL_ASSERT_MSG(hFile,"RecordFile %p: unable to open file handle (%s)",this,record.mRecordFilename.c_str());
+	mOffset = 0;
+	
+	seek(0,SEEK_SET);
+}
+auto RecordFile::close() -> void {
+	if(mInfoFile) {
+		mInfoFile = NULL;
+		std::fclose(hFile);
+		hFile = NULL;
+	}
+	if(mRecordCurrent) {
+		mRecordCurrent->filehandle_sub();
+		mRecordCurrent = NULL;
+	}
 }
 
 auto RecordInfo_Folder::add_file(const RecordInfo_File& file) -> void {
@@ -53,7 +123,50 @@ auto RecordInfo_Folder::mark_readonly() -> void {
 }
 
 auto Record::file_open(const std::string& filename) -> RecordFile {
-	return RecordFile(this,filename);
+	return RecordFile(*this,filename);
+}
+auto Record::file_find(const std::string& orig_filename) -> RecordInfo_File* {
+	std::string cur_name = "";
+	RecordInfo_Folder* cur_folder = mFolderCurrent;
+	
+	std::string filename = orig_filename;
+	if(orig_filename.at(0) == '/') {
+		filename = orig_filename.substr(1);
+		cur_folder = &mFolderRoot;
+		// NOTE: add cur_folder change here.
+	}
+
+	SCL_ASSERT_MSG(cur_folder,"record %p: null folder",this);
+
+	for(std::size_t idx=0; idx<filename.size(); idx++) {
+		auto current_chr = filename.at(idx);
+		if(current_chr == '/') {
+			// directory change
+			bool was_found = false;
+			for(auto& infofolder : cur_folder->mTableFolder) {
+				if(infofolder.name() == cur_name) {
+					cur_folder = &infofolder;
+					was_found = true;
+					break;
+				}
+			}
+			SCL_ASSERT_MSG(was_found,"record %p: unable to find folder '%s",this,cur_name.c_str());
+			cur_name = "";
+		} else {
+			// name append
+			cur_name += current_chr;
+			if(idx == filename.size()-1) {
+				// file find
+				for(auto& infofile : cur_folder->mTableFile) {
+					if(infofile.name() == cur_name) {
+						return &infofile;
+					}
+				}
+				return NULL;
+			}
+		}
+	}
+	return NULL;
 }
 
 auto Record::load_file(const std::string& src_filename, bool strict) -> void {
@@ -151,12 +264,40 @@ auto Record::load_file(const std::string& src_filename, bool strict) -> void {
 	};
 	iter_view(mFolderRoot,0);
 
+	// create file/folder arrays, then mark readonly ----@/
+	mFolderRoot.mark_readonly();
+	mArrayFile.resize(IDtable_file.size(),NULL);
+	mArrayFolder.resize(IDtable_folder.size(),NULL);
+
+	std::function<void(RecordInfo_Folder&)> iter_filltable = [&](RecordInfo_Folder& cur_folder) {
+		mArrayFolder.at(cur_folder.ID()) = &cur_folder;
+
+		// create new folder ----------------------------@/
+		for(auto& infofile : cur_folder.mTableFile) {
+			mArrayFile.at(infofile.ID()) = &infofile;
+		}	
+
+		for(auto& infofolder : cur_folder.mTableFolder) {
+			iter_filltable(infofolder);
+		}
+	};
+	iter_filltable(mFolderRoot);
+
 	std::fclose(file);
+
+	mRecordFilename = src_filename;
+	mFiledataOffset = header.offset_segFiledata + 4;
 }
 auto Record::from_file(const std::string& filename, bool strict) -> std::shared_ptr<Record> {
 	auto rec = std::make_shared<Record>();
 	rec->load_file(filename,strict);
 	return rec;
+}
+
+Record::~Record() {
+	SCL_ASSERT_MSG(!filehandle_isAny(),"Record %p: file handles are still open (%d)",
+		this,mNumFilehandles
+	);
 }
 
 // ==========================================================================@/
@@ -256,7 +397,6 @@ static scl::blob create(MetadataFolder& metafolder_root) {
 			auto source = metafile.source();
 			scl::Blob sourceblob;
 			sourceblob.file_load(source);
-			sourceblob = sourceblob.compress();
 			entry_file.data_len = sourceblob.size();
 
 			blob_segTblFile.write_raw(&entry_file,sizeof(entry_file));

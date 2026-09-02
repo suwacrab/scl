@@ -165,6 +165,21 @@ namespace sample_sclarc {
 	}
 	static void fn_unpack() {
 		auto record = sclarc::Record::from_file("workdata/out_scl.bin");
+
+		{
+			auto file = record->file_open("/script/test/hello.lua");
+			std::cout << std::format("file's name: {0}\n",file.mInfoFile->name());
+
+			std::string strdata;
+			auto strblob = file.read(file.filesize());
+			for(size_t i=0; i<strblob.size(); i++) {
+				strdata += strblob.data<char*>()[i];
+			}
+			strblob.file_send("workdata/str.txt");
+			std::cout << std::format("file reading:\n{0}\n",strdata);
+
+			file.close();
+		}
 	}
 };
 

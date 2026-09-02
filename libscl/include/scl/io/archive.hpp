@@ -27,6 +27,7 @@
 
 #include <string>
 #include <memory>
+#include <cstdio>
 
 namespace scl {
 namespace io {
@@ -120,15 +121,6 @@ struct SARFile_EntryFile {
 class Record;
 class RecordInfo_File;
 
-class RecordFile {
-	public:
-		Record* mRecordCurrent;
-		RecordInfo_File* mFolder;
-
-		RecordFile() : mRecordCurrent(NULL),mFolder(NULL) {}
-		RecordFile(Record* record, const std::string& filename);
-		
-};
 class RecordInfo_File {
 	public:
 		std::size_t mID;
@@ -137,6 +129,7 @@ class RecordInfo_File {
 		std::size_t mDataIdx;
 		std::size_t mDataLen;
 
+		constexpr auto ID() const -> size_t { return mID; }
 		constexpr auto name() const -> std::string { return mName; }
 		constexpr auto data_len() const -> size_t { return mDataLen; }
 		constexpr auto data_lenMB() const -> double { return ((double)mDataLen) / (1024.0*1024.0); }
@@ -168,18 +161,53 @@ class RecordInfo_Folder {
 		RecordInfo_Folder(size_t ID, std::string name)
 			: mID(ID),mParentID(FolderID::Null),mName(name),mReadonly(false) {}
 };
+class RecordFile {
+	public:
+		Record* mRecordCurrent;
+		RecordInfo_File* mInfoFile;
+		std::FILE* hFile;
+		std::size_t mOffset;
+
+		auto seek(int offset, int origin = SEEK_SET) -> void;
+		auto read(size_t len) -> scl::Blob;
+		auto read(void* output, size_t len) -> void;
+		auto close() -> void;
+		auto open(Record& record, const std::string& filename) -> void;
+
+		constexpr auto tell() -> size_t { return mOffset; }
+		constexpr auto filesize() -> size_t {
+			SCL_ASSERT_MSG(mInfoFile,"Record %p: no file",this);
+			return mInfoFile->mDataLen;
+		}
+
+		RecordFile() 
+			: mRecordCurrent(NULL),mInfoFile(NULL),hFile(NULL),mOffset(0) {}
+		RecordFile(Record& record, const std::string& filename);
+		~RecordFile();
+};
+
 class Record {
 	public:
 		RecordInfo_Folder mFolderRoot;
 		RecordInfo_Folder* mFolderCurrent;
-
-		auto load_file(const std::string& src_filename, bool strict=true) -> void;
+		std::vector<RecordInfo_File*> mArrayFile;
+		std::vector<RecordInfo_Folder*> mArrayFolder;
+		std::string mRecordFilename;
+		std::size_t mFiledataOffset;
+		int mNumFilehandles;
 
 		static auto from_file(const std::string& filename, bool strict=true) -> std::shared_ptr<Record>;
 
+		auto load_file(const std::string& src_filename, bool strict=true) -> void;
 		auto file_open(const std::string& filename) -> RecordFile;
+		auto file_find(const std::string& filename) -> RecordInfo_File*;
 
-		Record() : mFolderCurrent(NULL) {}
+		constexpr auto filehandle_add() -> void { mNumFilehandles += 1; }
+		constexpr auto filehandle_sub() -> void { mNumFilehandles -= 1; }
+		constexpr auto filehandle_isAny() -> bool { return mNumFilehandles > 0; }
+
+		Record() : mFolderCurrent(NULL),mNumFilehandles(0) {}
+		~Record();
 };
 
 // ==========================================================================@/
