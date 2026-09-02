@@ -15,15 +15,15 @@
 
 namespace scl {
 
-class blob {
+class Blob {
 	public:
 		std::vector<uint8_t> mData;
 
-		auto write_blob(const blob& source) -> blob& {
+		auto write_blob(const Blob& source) -> Blob& {
 			mData.insert(mData.end(),source.mData.begin(),source.mData.end());
 			return *this;
 		}
-		auto write_raw(const void* source, std::size_t len) -> blob& {
+		auto write_raw(const void* source, std::size_t len) -> Blob& {
 			SCL_ASSERT_MSG(source,"blob %p: attempt to write from null source",this);
 			if(len == 0) return *this;
 
@@ -48,10 +48,11 @@ class blob {
 			}
 		}
 
-		auto pad(int divisor, int padbyte = 0xAB) -> void {
+		auto pad(int divisor, int padbyte = 0xAB) -> Blob& {
 			while((size()%divisor) != 0) {
 				write_u8(padbyte);
 			}
+			return *this;
 		}
 		auto clear() -> void {
 			mData.clear();
@@ -76,7 +77,7 @@ class blob {
 			const std::size_t fsize = std::ftell(file);
 			std::rewind(file);
 
-			// write to blob ----------------------------@/
+			// write to Blob ----------------------------@/
 			std::vector<uint8_t> buffer(fsize);
 			std::fread(buffer.data(),1,buffer.size(),file);
 			std::fclose(file);
@@ -100,7 +101,7 @@ class blob {
 			return true;
 		}
 #ifdef SCL_USE_ZLIB
-		auto compress(bool include_metadata=true, const bool do_compress=true) -> blob {
+		auto compress(bool include_metadata=true, const bool do_compress=true) -> Blob {
 			std::vector<Bytef> comp_data(size()*2 + 32);
 
 			// just a level below Z_BEST_COMPRESSION (9)
@@ -136,7 +137,7 @@ class blob {
 				std::terminate();
 			}
 
-			blob comp_blob;
+			Blob comp_blob;
 			if(include_metadata) {
 				// 4 bytes for magic, 4 bytes for original size, 4 bytes for
 				// packed size
@@ -153,13 +154,13 @@ class blob {
 
 			return comp_blob;
 		}
-		auto compress_full(const bool do_compress=true) -> blob {
+		auto compress_full(const bool do_compress=true) -> Blob {
 			return compress(true,do_compress);
 		}
-		auto compress_raw(const bool do_compress=true) -> blob {
+		auto compress_raw(const bool do_compress=true) -> Blob {
 			return compress(false,do_compress);
 		}
-		auto decompress(bool include_metadata=true) -> blob {
+		auto decompress(bool include_metadata=true) -> Blob {
 		/*	MARISA_ASSERT(outbuf,"marisa_data_decompress","output buffer is null!");
 			MARISA_ASSERT(srcbuf,"marisa_data_decompress","source buffer is null!");
 			MARISA_ASSERT(srcsize>0,"marisa_data_decompress","source size is 0!");
@@ -171,7 +172,7 @@ class blob {
 			zstrm.opaque = Z_NULL;
 
 			std::vector<uint8_t> filler;
-			blob newblob;
+			Blob newblob;
 
 			if(include_metadata) {
 				if(size() <= 24) {
@@ -185,7 +186,7 @@ class blob {
 				size_unpacked = *reinterpret_cast<uint64_t*>(data<char*>() + 8);
 
 				filler.resize(size_unpacked);
-				newblob = scl::blob(filler);
+				newblob = scl::Blob(filler);
 				std::printf("unpacked size: %6zX\n",size_unpacked);
 				std::printf("packed size: %6zX\n",size_packed);
 				zstrm.avail_in = size_packed;
@@ -203,7 +204,7 @@ class blob {
 
 			return newblob;
 		}
-		auto decompress_full() -> blob {
+		auto decompress_full() -> Blob {
 			return decompress(true);
 		}
 #endif
@@ -219,21 +220,29 @@ class blob {
 			return mData.at(idx); 
 		}
 
-		blob() {
+		Blob() {
 			clear();
 		}
-		blob(const blob& orig) {
+		Blob(const Blob& orig) {
 			mData = orig.mData;
 		}
-		blob(const std::vector<uint8_t>& data) {
+		Blob(const std::vector<uint8_t>& data) {
 			mData = data;
 		}
 
-		constexpr auto operator=(const blob& other) -> blob& {
+		constexpr auto operator=(const Blob& other) -> Blob& {
 			mData = other.mData;
 			return *this;
 		}
+
+		static auto from_str(std::string_view str, bool no_terminator=false) -> Blob {
+			Blob strblob;
+			strblob.write_str(str,no_terminator);
+			return strblob;
+		}
 };
+
+using blob = Blob;
 
 } // namespace scl
 

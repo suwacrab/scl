@@ -1,9 +1,9 @@
 #define SCL_USE_ZLIB
-#define SCL_DEBUG
 #include <scl/container/blob.hpp>
 #include <scl/container/pool.hpp>
 #include <scl/math/fixed.hpp>
 #include <scl/math/vector.hpp>
+#include <scl/io/archive.hpp>
 
 #include <ranges>
 #include <filesystem>
@@ -11,23 +11,14 @@
 #include <iostream>
 
 namespace stdfs = std::filesystem;
+namespace sclarc = scl::io::archive;
 using Fxi = scl::math::Fxi;
 
 namespace sample_sdzarc {
 	static void fn_pack() {
-		const std::string entry_names[] = {
-			"entry A.",
-			"entry B.",
-			"entry C!",
-			"lastly, entry D.",
-			"though, is even an entry E safe to use? not sure.",
-			"maybe even an entry F, if we feel like it.",
-			"also, the hidden prototype entry X."
-		};
-
 		std::vector<scl::blob> filedata_table;
 		std::vector<std::string> filename_table;
-		auto basepath = stdfs::path("../../guiutil/kappamap/kmap/workdata/sprite/editor/chip");
+		auto basepath = stdfs::path("../../../guiutil/kappamap/kmap/workdata/sprite/editor/chip");
 		std::printf("foldername: %s\n",basepath.string().c_str());
 		for (const auto & entry : stdfs::recursive_directory_iterator(basepath)) {
 			if(entry.is_regular_file()) {
@@ -165,6 +156,17 @@ namespace sample_fxi {
 		std::cout << std::format("num: {0} ({1})\n",div_60.real(),1.0 / 60);
 	}
 };
+namespace sample_sclarc {
+	static void fn_pack() {
+	//	auto archive = sclarc::create_file("../../../guiutil/kappamap/kmap/workdata/sprite/editor/chip");
+		auto archive = sclarc::create_file("../../../guiutil/kappamap/kmap/workdata/");
+		archive.file_send("workdata/out_scl.bin");
+		archive.compress_full().file_send("workdata/out_sclPacked.bin");
+	}
+	static void fn_unpack() {
+		auto record = sclarc::Record::from_file("workdata/out_scl.bin");
+	}
+};
 
 int main(int argc, const char* argv[]) {
 	sample_sdzarc::fn_pack();
@@ -172,5 +174,7 @@ int main(int argc, const char* argv[]) {
 
 	sample_objlist::start();
 	sample_fxi::start();
+	sample_sclarc::fn_pack();
+	sample_sclarc::fn_unpack();
 }
 

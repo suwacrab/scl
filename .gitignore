@@ -1,5 +1,11 @@
-bin/*
-!bin/.gitkeep
+tests/bin/*
+!tests/bin/.gitkeep
 
-workdata/*
-!workdata/.gitkeep
+tests/workdata/*
+!tests/workdata/.gitkeep
+
+libscl/bin/*
+!libscl/bin/.gitkeep
+
+libscl/workdata/*
+!libscl/workdata/.gitkeep

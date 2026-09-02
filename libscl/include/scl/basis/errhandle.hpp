@@ -1,15 +1,12 @@
 #pragma once
 
 #include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
 #include <array>
 
-#ifdef SCL_DEBUG
 #define SCL_ASSERT(cond) { if(!(cond)) { scl::errhandle::debugbreak_noFormat(__FILE__,__LINE__,__PRETTY_FUNCTION__,#cond); } }
 #define SCL_ASSERT_MSG(cond,msg,...) { if(!(cond)) { scl::errhandle::debugbreak_withMessage(__FILE__,__LINE__,__PRETTY_FUNCTION__,msg,##__VA_ARGS__); } }
-#else
-#define SCL_ASSERT(cond) { }
-#define SCL_ASSERT_MSG(cond,msg,...) { }
-#endif
 
 namespace scl {
 namespace errhandle {
