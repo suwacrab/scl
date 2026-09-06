@@ -6,6 +6,7 @@ AR	:= ar
 CFLAGS := -Wall -Wshadow -Iinclude --std=c++23
 CFLAGS += --write-user-dependencies -MP
 CFLAGS += -O2
+CFLAGS += -g
 
 # output --------------------------------------------------------------------@/
 OBJ_DIR := build

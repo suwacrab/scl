@@ -70,7 +70,7 @@ auto RecordFile::read(size_t len) -> scl::Blob {
 	SCL_ASSERT_MSG(mOffset + len <= mInfoFile->mDataLen,"RecordFile %p: attempt to read past eof",this);
 	
 	// create buffer to read into -----------------------@/
-	scl::blob bl;
+	scl::Blob bl;
 	bl.resize(len);
 
 	// read into blob -----------------------------------@/
@@ -128,7 +128,14 @@ auto Record::file_open(const std::string& filename) -> RecordFile {
 auto Record::file_find(const std::string& orig_filename) -> RecordInfo_File* {
 	std::string cur_name = "";
 	RecordInfo_Folder* cur_folder = mFolderCurrent;
-	
+
+	// check if hash is available before full check -----@/
+	auto orig_hash = create_hash(orig_filename);
+	if(mHashFile.contains(orig_hash)) {
+		return mHashFile[orig_hash];
+	}
+
+	// check in full ------------------------------------@/
 	std::string filename = orig_filename;
 	if(orig_filename.at(0) == '/') {
 		filename = orig_filename.substr(1);
@@ -141,7 +148,7 @@ auto Record::file_find(const std::string& orig_filename) -> RecordInfo_File* {
 	for(std::size_t idx=0; idx<filename.size(); idx++) {
 		auto current_chr = filename.at(idx);
 		if(current_chr == '/') {
-			// directory change
+			// directory change -------------------------@/
 			bool was_found = false;
 			for(auto& infofolder : cur_folder->mTableFolder) {
 				if(infofolder.name() == cur_name) {
@@ -153,10 +160,10 @@ auto Record::file_find(const std::string& orig_filename) -> RecordInfo_File* {
 			SCL_ASSERT_MSG(was_found,"record %p: unable to find folder '%s",this,cur_name.c_str());
 			cur_name = "";
 		} else {
-			// name append
+			// name append ------------------------------@/
 			cur_name += current_chr;
 			if(idx == filename.size()-1) {
-				// file find
+				// file find ----------------------------@/
 				for(auto& infofile : cur_folder->mTableFile) {
 					if(infofile.name() == cur_name) {
 						return &infofile;
@@ -227,6 +234,8 @@ auto Record::load_file(const std::string& src_filename, bool strict) -> void {
 			RecordInfo_File infofile(fileID,infofile_name);
 			infofile.mDataIdx = fileentry.data_idx;
 			infofile.mDataLen = fileentry.data_len;
+			infofile.mHashName = fileentry.hashName;
+			infofile.mHashFullpath = fileentry.hashFullpath;
 
 			subfolder.add_file(infofile);
 		}
@@ -275,6 +284,7 @@ auto Record::load_file(const std::string& src_filename, bool strict) -> void {
 		// create new folder ----------------------------@/
 		for(auto& infofile : cur_folder.mTableFile) {
 			mArrayFile.at(infofile.ID()) = &infofile;
+			mHashFile[infofile.hashFullpath()] = &infofile;
 		}	
 
 		for(auto& infofolder : cur_folder.mTableFolder) {
@@ -303,7 +313,7 @@ Record::~Record() {
 // ==========================================================================@/
 // misc fns                                                                  @/
 // ==========================================================================@/
-static scl::blob create(MetadataFolder& metafolder_root) {
+static scl::Blob create_fileFromMetafolder(MetadataFolder& metafolder_root) {
 	std::vector<std::vector<std::size_t>> IDtables_folder;
 	std::vector<std::vector<std::size_t>> IDtables_file;
 
@@ -330,36 +340,51 @@ static scl::blob create(MetadataFolder& metafolder_root) {
 		IDtables_file.push_back(idtable);
 	}
 	
-	// assign IDs to each file and folder ---------------@/
+	// assign IDs and hashes to each file and folder ----@/
 	size_t baseID_file = 0;
 	size_t baseID_folder = 0;
 
-	std::function<void(MetadataFolder&)> iter_setIDs = [&](MetadataFolder& cur_folder) {
+	std::function<void(MetadataFolder&,std::string)> iter_setIDs = [&](MetadataFolder& cur_folder,std::string curpath) {
+		// root folder should use "/"! ------------------@/
+		const bool is_root = (baseID_folder == 0);
 		cur_folder.mID = baseID_folder++;
+		cur_folder.mHashName = create_hash(cur_folder.name());
+		if(is_root) {
+			cur_folder.mHashFullpath = create_hash("/");
+		} else {
+			cur_folder.mHashFullpath = create_hash(curpath);
+		}
 		auto& cur_IDtableFolder = IDtables_folder.at(cur_folder.mID);
 		auto& cur_IDtableFile = IDtables_file.at(cur_folder.mID);
 
 		for(auto& file : cur_folder.mFiles) {
 			file.mID = baseID_file++;
 			file.mParentID = cur_folder.ID();
+			file.mHashName = create_hash(file.name());
+			if(is_root) {
+				file.mHashFullpath = create_hash("/" + file.name());
+			} else {
+				file.mHashFullpath = create_hash(curpath + "/" + file.name());
+			}
 			cur_IDtableFile.push_back(file.mID);
 		}
 		for(auto& folder : cur_folder.mFolders) {
-			iter_setIDs(folder);
+			iter_setIDs(folder,curpath + "/" + folder.name());
 			folder.mParentID = cur_folder.ID();
 			cur_IDtableFolder.push_back(folder.ID());
 		}
 	};
-	iter_setIDs(metafolder_root);
+
+	iter_setIDs(metafolder_root,"");
 
 	// begin writing actual file tables -----------------@/
-	scl::blob blob_segHeader;
-	scl::blob blob_segTblFolder;
-	scl::blob blob_segTblFile;
-	scl::blob blob_segTblFolderID;
-	scl::blob blob_segTblFileID;
-	scl::blob blob_segString;
-	scl::blob blob_segFiledata;
+	scl::Blob blob_segHeader;
+	scl::Blob blob_segTblFolder;
+	scl::Blob blob_segTblFile;
+	scl::Blob blob_segTblFolderID;
+	scl::Blob blob_segTblFileID;
+	scl::Blob blob_segString;
+	scl::Blob blob_segFiledata;
 
 	std::function<void(MetadataFolder&)> iter_final = [&](MetadataFolder& cur_folder) {
 		auto cur_IDtableFolder = IDtables_folder.at(cur_folder.mID);
@@ -374,6 +399,8 @@ static scl::blob create(MetadataFolder& metafolder_root) {
 		entry_folder.num_folders = cur_folder.mFolders.size();
 		entry_folder.name_idx = blob_segString.size();
 		entry_folder.name_len = cur_folder.name().size();
+		entry_folder.hashName = cur_folder.hashName();
+		entry_folder.hashFullpath = cur_folder.hashFullpath();
 		blob_segTblFolder.write_raw(&entry_folder,sizeof(entry_folder));
 		blob_segString.write_str(cur_folder.name());
 
@@ -389,9 +416,11 @@ static scl::blob create(MetadataFolder& metafolder_root) {
 		for(const auto& metafile : cur_folder.mFiles) {
 			// write to file table ----------------------@/
 			SARFile_EntryFile entry_file = {};
+			entry_file.data_idx = blob_segFiledata.size();
 			entry_file.name_idx = blob_segString.size();
 			entry_file.name_len = metafile.name().size();
-			entry_file.data_idx = blob_segFiledata.size();
+			entry_file.hashName = metafile.hashName();
+			entry_file.hashFullpath = metafile.hashFullpath();
 
 			// write filedata ---------------------------@/
 			auto source = metafile.source();
@@ -448,7 +477,7 @@ static scl::blob create(MetadataFolder& metafolder_root) {
 	blob_segHeader.pad(header_size);
 
 	// write to final blob ------------------------------@/
-	scl::blob blob_all;
+	scl::Blob blob_all;
 	
 	blob_all.write_blob(blob_segHeader)
 		.write_blob(blob_segTblFolder)
@@ -460,7 +489,7 @@ static scl::blob create(MetadataFolder& metafolder_root) {
 
 	return blob_all;
 }
-scl::blob create_file(const std::string& src_filename) {
+scl::Blob create_file(const std::string& src_filename) {
 	MetadataFolder metafolder_root("_root");
 
 	std::setlocale(LC_ALL, "en_us.utf8");
@@ -493,7 +522,7 @@ scl::blob create_file(const std::string& src_filename) {
 		check_entry(entry,metafolder_root);
 	}
 
-	return create(metafolder_root);
+	return create_fileFromMetafolder(metafolder_root);
 }
 
 }; // namespace archive

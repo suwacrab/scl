@@ -33,7 +33,7 @@ uint32_t sqrti(uint64_t a_nInput) {
 		one >>= 2;
 	}
 
-	// optional rounding --------------------------------@/
+	// round to account for error -----------------------@/
 	if(op > res) {
 		res++;
 	}
@@ -99,6 +99,10 @@ template<std::size_t S = 12> class QFxi {
 			auto input = static_cast<int64_t>(raw()) << S;
 			auto res = scl::math::sqrti(input);
 			return QFxi<S>(res,0);
+		}
+		constexpr auto pow(const QFxi<S>& exp) const -> QFxi<S> {
+			auto n = std::pow(real(),exp.real());
+			return QFxi<S>(n);
 		}
 
 		// operator overloads ---------------------------@/

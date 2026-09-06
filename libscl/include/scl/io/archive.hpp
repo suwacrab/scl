@@ -25,8 +25,9 @@
 
 #include <scl/container/blob.hpp>
 
-#include <string>
+#include <map>
 #include <memory>
+#include <string>
 #include <cstdio>
 
 namespace scl {
@@ -40,6 +41,8 @@ namespace FolderID {
 	};
 };
 
+using Hash = uint32_t;
+
 // ==========================================================================@/
 // metadata                                                                  @/
 // ==========================================================================@/
@@ -49,6 +52,8 @@ class MetadataFile {
 		std::string mSourceFilename;
 		std::size_t mID;
 		std::size_t mParentID;
+		Hash mHashName;
+		Hash mHashFullpath;
 		
 		MetadataFile()
 			: mName("_UNNAMED"),mSourceFilename(),mID(0),mParentID(FolderID::Null) {}
@@ -58,6 +63,8 @@ class MetadataFile {
 		auto ID() const -> std::size_t { return mID; }
 		auto name() const -> std::string { return mName; }
 		auto source() const -> std::string { return mSourceFilename; }
+		auto hashName() const -> Hash { return mHashName; }
+		auto hashFullpath() const -> Hash { return mHashFullpath; }
 };
 class MetadataFolder {
 	public:
@@ -66,6 +73,8 @@ class MetadataFolder {
 		std::vector<MetadataFolder> mFolders;
 		std::size_t mID;
 		std::size_t mParentID;
+		Hash mHashName;
+		Hash mHashFullpath;
 
 		MetadataFolder()
 			: mFiles(),mFolders(),mID(0),mParentID(FolderID::Null) {}
@@ -75,6 +84,8 @@ class MetadataFolder {
 		auto name() const -> std::string { return mName; }
 		auto ID() const -> std::size_t { return mID; }
 		auto parentID() const -> std::size_t { return mParentID; }
+		auto hashName() const -> Hash { return mHashName; }
+		auto hashFullpath() const -> Hash { return mHashFullpath; }
 
 		auto add_file(MetadataFile file) -> void;
 		auto add_folder(MetadataFolder fldr) -> void;
@@ -107,12 +118,16 @@ struct SARFile_EntryFolder {
 	uint32_t num_folders;
 	uint32_t name_idx;
 	uint32_t name_len;
+	uint32_t hashName;
+	uint32_t hashFullpath;
 };
 struct SARFile_EntryFile {
 	uint32_t data_len;
 	uint32_t data_idx;
 	uint32_t name_idx;
 	uint32_t name_len;
+	uint32_t hashName;
+	uint32_t hashFullpath;
 };
 
 // ==========================================================================@/
@@ -128,11 +143,15 @@ class RecordInfo_File {
 		std::string mName;
 		std::size_t mDataIdx;
 		std::size_t mDataLen;
+		Hash mHashName;
+		Hash mHashFullpath;
 
 		constexpr auto ID() const -> size_t { return mID; }
 		constexpr auto name() const -> std::string { return mName; }
 		constexpr auto data_len() const -> size_t { return mDataLen; }
 		constexpr auto data_lenMB() const -> double { return ((double)mDataLen) / (1024.0*1024.0); }
+		constexpr auto hashName() const -> Hash { return mHashName; }
+		constexpr auto hashFullpath() const -> Hash { return mHashFullpath; }
 
 		RecordInfo_File()
 			: mID(0),mParentID(FolderID::Null),mName(),mDataIdx(0),mDataLen(0) {}
@@ -192,6 +211,7 @@ class Record {
 		RecordInfo_Folder* mFolderCurrent;
 		std::vector<RecordInfo_File*> mArrayFile;
 		std::vector<RecordInfo_Folder*> mArrayFolder;
+		std::map<Hash,RecordInfo_File*> mHashFile;
 		std::string mRecordFilename;
 		std::size_t mFiledataOffset;
 		int mNumFilehandles;
@@ -214,6 +234,13 @@ class Record {
 // misc fns                                                                  @/
 // ==========================================================================@/
 scl::Blob create_file(const std::string& src_filename);
+static inline Hash create_hash(const std::string& str) {
+	uint64_t hash = 0x811C9DC4;
+	for(std::size_t i=0; i<str.size(); i++) {
+		hash = ((hash ^ static_cast<uint8_t>(str.at(i))) * 0x1000193) & 0xFFFFFFFF;
+	}
+	return static_cast<Hash>(hash);
+}
 
 }; // namespace archive
 }; // namespace io

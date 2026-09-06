@@ -2,9 +2,10 @@
 CXX	:= clang++
 CC	:= clang
 
-CFLAGS	:= -Wall -Wshadow -Iinclude --std=c++23
-CFLAGS	+= --write-user-dependencies -MP
-CFLAGS	+= -I../libscl/include
+CFLAGS := -Wall -Wshadow -Iinclude --std=c++23
+CFLAGS += --write-user-dependencies -MP
+CFLAGS += -I../libscl/include
+CFLAGS += -g
 LDFLAGS := -L../libscl/bin
 LDFLAGS += -lz -lscl
 

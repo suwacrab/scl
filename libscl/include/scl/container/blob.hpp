@@ -3,7 +3,6 @@
 #include <vector>
 #include <string>
 #include <cstdint>
-#include <cstdio>
 #include <bit>
 #include <exception>
 
@@ -61,45 +60,8 @@ class Blob {
 			mData.resize(amt);
 		}
 
-		auto file_load(const std::string& filename, bool strict=true) -> bool {
-			auto file = std::fopen(filename.c_str(),"rb");
-			if(!file) {
-				if(strict) {
-					std::printf("Blob::file_load(): error: unable to load file %s\n",
-						filename.c_str()
-					);
-					std::terminate();
-				}
-				return false;
-			}
-			// get file size ----------------------------@/
-			std::fseek(file,0,SEEK_END);
-			const std::size_t fsize = std::ftell(file);
-			std::rewind(file);
-
-			// write to Blob ----------------------------@/
-			std::vector<uint8_t> buffer(fsize);
-			std::fread(buffer.data(),1,buffer.size(),file);
-			std::fclose(file);
-			mData.insert(mData.end(),buffer.begin(),buffer.end());
-			return true;
-		}
-		auto file_send(const std::string& filename, bool strict=true) const -> bool {
-			auto file = std::fopen(filename.c_str(),"wb");
-			if(!file) {
-				if(strict) {
-					std::printf(
-						"Blob::file_send(): error: unable to send to file %s\n",
-						filename.c_str()
-					);
-					std::terminate();
-				}
-				return false;
-			}
-			std::fwrite(mData.data(),sizeof(char),size(),file);
-			std::fclose(file);
-			return true;
-		}
+		auto file_load(const std::string& filename, bool strict=true) -> bool;
+		auto file_send(const std::string& filename, bool strict=true) const -> bool;
 #ifdef SCL_USE_ZLIB
 		auto compress(bool include_metadata=true, const bool do_compress=true) -> Blob {
 			std::vector<Bytef> comp_data(size()*2 + 32);
@@ -208,7 +170,6 @@ class Blob {
 			return decompress(true);
 		}
 #endif
-
 		template<typename T=void*> auto data() -> T {
 			return reinterpret_cast<T>(mData.data());
 		}
@@ -241,8 +202,6 @@ class Blob {
 			return strblob;
 		}
 };
-
-using blob = Blob;
 
 } // namespace scl
 

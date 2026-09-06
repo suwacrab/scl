@@ -16,7 +16,7 @@ using Fxi = scl::math::Fxi;
 
 namespace sample_sdzarc {
 	static void fn_pack() {
-		std::vector<scl::blob> filedata_table;
+		std::vector<scl::Blob> filedata_table;
 		std::vector<std::string> filename_table;
 		auto basepath = stdfs::path("../../../guiutil/kappamap/kmap/workdata/sprite/editor/chip");
 		std::printf("foldername: %s\n",basepath.string().c_str());
@@ -24,7 +24,7 @@ namespace sample_sdzarc {
 			if(entry.is_regular_file()) {
 				auto path = entry.path().string();
 				auto proxim = stdfs::proximate(entry.path(),basepath);
-				scl::blob filedata;
+				scl::Blob filedata;
 				std::printf("loading file arc::%s\n",proxim.string().c_str());
 				filedata.file_load(path);
 				filedata_table.push_back(filedata);
@@ -33,11 +33,11 @@ namespace sample_sdzarc {
 		}
 
 		constexpr size_t pad_size = 256;
-		scl::blob blob_all;
-		scl::blob blob_segHeader;
-		scl::blob blob_segEntry;
-		scl::blob blob_segName;
-		scl::blob blob_segData;
+		scl::Blob blob_all;
+		scl::Blob blob_segHeader;
+		scl::Blob blob_segEntry;
+		scl::Blob blob_segName;
+		scl::Blob blob_segData;
 
 		std::puts("writing blobs");
 		for(auto const [index,data] : std::views::enumerate(filedata_table)) {
@@ -71,7 +71,7 @@ namespace sample_sdzarc {
 		blob_all.compress_full().file_send("workdata/outPacked.bin");
 	}
 	static void fn_unpack() {
-		scl::blob filedata;
+		scl::Blob filedata;
 		filedata.file_load("workdata/outPacked.bin");
 		auto unpacked = filedata.decompress_full();
 		unpacked.file_send("workdata/outUnpacked.bin");
@@ -154,32 +154,28 @@ namespace sample_fxi {
 		std::cout << std::format("1/x: {0} ({1})\n",div_xRes.real(),div_xRes.to_str());
 		std::cout << std::format("num: {0} ({1})\n",printtest.real(),printtest.to_str());
 		std::cout << std::format("num: {0} ({1})\n",div_60.real(),1.0 / 60);
+		std::cout << std::format("2 ^ (1/6):       {0}\n",Fxi(2).pow(1.0 / 6).real());
+		std::cout << std::format("(2 ^ (1/6)) ^ 6: {0}\n",Fxi(2).pow(1.0 / 6).pow(6).real());
 	}
 };
 namespace sample_sclarc {
 	static void fn_pack() {
-	//	auto archive = sclarc::create_file("../../../guiutil/kappamap/kmap/workdata/sprite/editor/chip");
 		auto archive = sclarc::create_file("../../../guiutil/kappamap/kmap/workdata/");
 		archive.file_send("workdata/out_scl.bin");
-		archive.compress_full().file_send("workdata/out_sclPacked.bin");
+		std::puts("sclarc: packed!");
 	}
 	static void fn_unpack() {
 		auto record = sclarc::Record::from_file("workdata/out_scl.bin");
 
-		{
-			auto file = record->file_open("/script/test/hello.lua");
+		{ auto file = record->file_open("/script/test/hello.lua");
 			std::cout << std::format("file's name: {0}\n",file.mInfoFile->name());
 
-			std::string strdata;
-			auto strblob = file.read(file.filesize());
-			for(size_t i=0; i<strblob.size(); i++) {
-				strdata += strblob.data<char*>()[i];
-			}
-			strblob.file_send("workdata/str.txt");
-			std::cout << std::format("file reading:\n{0}\n",strdata);
+			// send to workdata -------------------------@/
+			file.read(file.filesize()).file_send("workdata/str.txt");
 
 			file.close();
 		}
+		std::puts("sclarc: unpacked!");
 	}
 };
 
